@@ -35,6 +35,33 @@ public class MavenSnapshotTriggerTest extends HudsonTestCase {
         waitUntilNoActivityUpTo(90*1000);
         assertEquals("Expected most recent build of second project to be #2", 2, projB.getLastBuild().getNumber());
     }
+   
+    /**
+     * Verifies dependency build ordering of SNAPSHOT dependency.
+     * Note - has to build the projects once each first in order to get dependency info.
+     */
+    public void testSnapshotInDependencyManagementBuildTrigger() throws Exception {
+
+        configureDefaultMaven();
+        MavenModuleSet projA = createMavenProject("snap-dep-test-up");
+        projA.setGoals("clean install");
+        projA.setScm(new ExtractResourceSCM(getClass().getResource("maven-dep-test-A.zip")));
+        MavenModuleSet projB = createMavenProject("snap-dep-test-down");
+        projB.setGoals("clean install");
+        projB.setIgnoreUpstremChanges(false);
+        projB.setQuietPeriod(0);
+        projB.setScm(new ExtractResourceSCM(getClass().getResource("maven-dep-test-D.zip")));
+
+        buildAndAssertSuccess(projA);
+        buildAndAssertSuccess(projB);
+
+        projA.setScm(new ExtractResourceSCM(getClass().getResource("maven-dep-test-A-changed.zip")));
+        buildAndAssertSuccess(projA);
+
+        // at this point runB2 should be in the queue, so wait until that completes.
+        waitUntilNoActivityUpTo(90*1000);
+        assertEquals("Expected most recent build of second project to be #2", 2, projB.getLastBuild().getNumber());
+    }
 
     /**
      * Verifies dependency build ordering of multiple SNAPSHOT dependencies.
